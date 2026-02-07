@@ -32,15 +32,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
+      - name: Extract metadata (tags)
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
+            # Only on git tag pushes (vX.Y.Z)
             type=ref,event=tag
+
+            # Only on main branch pushes
             type=raw,value=latest,enable={{is_default_branch}}
-            type=sha
+            type=sha,enable={{is_default_branch}}
 
       - name: Build and push multi-arch
         uses: docker/build-push-action@v5
