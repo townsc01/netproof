@@ -1,0 +1,19 @@
+# user config / logs
+config.env
+*.env
+/data/
+*.ndjson
+*.log
+*.csv
+*.txt
+*.zip
+
+# OS junk
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# temp
+tmp/
