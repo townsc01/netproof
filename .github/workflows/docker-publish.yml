@@ -3,6 +3,8 @@ name: Build and Publish Docker Image
 on:
   push:
     branches: [ "main" ]
+    tags:
+      - "v*"
   workflow_dispatch:
 
 permissions:
@@ -36,7 +38,8 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=raw,value=latest
+            type=ref,event=tag
+            type=raw,value=latest,enable={{is_default_branch}}
             type=sha
 
       - name: Build and push multi-arch
