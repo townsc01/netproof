@@ -15,6 +15,21 @@ source "$CFG"
 
 export TZ="${TZ:-UTC}"
 
+PING_PIDS=()
+
+cleanup() {
+  echo "Stopping..."
+  for pid in "${PING_PIDS[@]:-}"; do
+    kill "$pid" 2>/dev/null || true
+  done
+  # If an iperf is mid-flight, stop it too
+  pkill -f "iperf3 -c" 2>/dev/null || true
+  wait 2>/dev/null || true
+  exit 0
+}
+
+trap cleanup SIGINT SIGTERM
+
 run_one () {
   dir="$1"; shift
   ts="$(date -Iseconds)"
@@ -32,6 +47,7 @@ run_one () {
     printf "{\"timestamp\":\"%s\",\"direction\":\"%s\",\"error\":\"iperf_fail\",\"exit_code\":%d}\n" "$ts" "$dir" "$rc" >>"$LOG"
     echo "$ts $dir iperf_fail exit_code=$rc" >>"$ERR"
   fi
+
   rm -f "$tmp"
 }
 
@@ -39,10 +55,12 @@ ping_bg () {
   target="$1"
   out="$2"
   ( ping -i 1 "$target" | while read -r line; do echo "$(date -Iseconds) $line"; done ) >>"$out" 2>&1 &
+  echo $!
 }
 
-ping_bg "${ROUTER_IP}" "${PR}"
-ping_bg "1.1.1.1" "${PE}"
+echo "Starting pings..."
+PING_PIDS+=("$(ping_bg "${ROUTER_IP}" "${PR}")")
+PING_PIDS+=("$(ping_bg "1.1.1.1" "${PE}")")
 
 echo "NetProof running. Logs in $DATA_DIR"
 echo "VPS_IP=$VPS_IP ROUTER_IP=$ROUTER_IP"
