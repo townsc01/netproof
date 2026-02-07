@@ -1,37 +1,90 @@
 # NetProof
 
-NetProof is a CLI-first Docker tool for logging internet instability (throughput + latency) and generating ISP-ready evidence packs.
+NetProof is a simple Docker tool that helps you prove internet slowdowns/dropouts by generating an ISP-ready evidence pack.
 
-It runs:
-- iperf3 upload/download tests to a VPS you control
-- ping to your router (LAN stability)
-- ping to 1.1.1.1 (WAN stability)
+It measures:
+- Throughput (download + upload) to a VPS you control (iperf3)
+- Ping to your router (LAN/Wi-Fi health)
+- Ping to the internet (WAN/ISP health)
 
-Outputs CSV + summary files that can be emailed to your ISP.
+At the end, it generates:
+- isp_summary.txt (human readable)
+- bullshit_events.csv (worst incidents)
+- plus supporting CSVs
 
-## Requirements
+## What you need
 
-1. A VPS with iperf3 server running:
+1) A machine that can run Docker (NAS, Linux box, Mac/Windows with Docker).
+2) A VPS on the internet (DigitalOcean/Linode/Vultr/etc).
+
+## Step 1: Set up iperf3 server on your VPS
+
+SSH into your VPS, then run:
 
     sudo apt update
     sudo apt install -y iperf3
     nohup iperf3 -s > /root/iperf_server.log 2>&1 &
 
-2. Docker installed on your NAS / server / machine.
+(Optional) Confirm it’s running:
 
-## Quick start
+    ps aux | grep iperf3
 
-### 1) Run wizard
+## Step 2: Make a folder for NetProof data
 
-    docker run --rm -it -v $PWD/netproof_data:/data netproof wizard
+On the machine where you’ll run NetProof:
 
-### 2) Run logger
+    mkdir -p netproof_data
 
-    docker run -d --name netproof --restart unless-stopped -v $PWD/netproof_data:/data netproof run
+This folder will store logs and output CSVs.
 
-### 3) Generate ISP report
+## Step 3: Run the setup wizard
 
-    docker exec netproof netproof report
+This writes config into netproof_data/config.env:
 
-Your output files will be in `netproof_data/`.
+    docker run --rm -it -v $PWD/netproof_data:/data ghcr.io/townsc01/netproof:latest wizard
+
+## Step 4: Start logging (overnight)
+
+Run in the background:
+
+    docker run -d --name netproof --restart unless-stopped -v $PWD/netproof_data:/data ghcr.io/townsc01/netproof:latest run
+
+Check it’s running:
+
+    docker ps
+
+View logs:
+
+    docker logs -f netproof
+
+## Step 5: Stop logging
+
+    docker stop netproof
+    docker rm netproof
+
+## Step 6: Generate the ISP report pack
+
+    docker run --rm -v $PWD/netproof_data:/data ghcr.io/townsc01/netproof:latest report
+
+## Output files (in netproof_data)
+
+- isp_summary.txt
+- bullshit_events.csv
+- iperf_summary.csv
+- ping_router.csv
+- ping_external.csv
+
+Raw logs:
+- iperf_log.ndjson
+- iperf_err.log
+- ping_router.txt
+- ping_external.txt
+
+## Typical workflow
+
+1) Run overnight
+2) Generate report in the morning
+3) Email your ISP: isp_summary.txt + bullshit_events.csv + iperf_summary.csv + ping_external.csv
+
+If router ping is clean but external ping + throughput is bad, your ISP can’t blame your Wi-Fi.
 
